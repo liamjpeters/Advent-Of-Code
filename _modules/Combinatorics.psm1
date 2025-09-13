@@ -66,3 +66,69 @@ function Get-Permutations {
         [PSCustomObject]@{ Permutation = $permutation }
     }
 }
+
+<#
+.SYNOPSIS
+    Generates all possible combinations of x numbers that sum up to a specified
+    target value.
+
+.DESCRIPTION
+    The Get-CombinationsWithSum function generates all combinations of 
+    `NumElements` elements that sum to `Sum` with a minimum value of `Min`.
+
+.PARAMETER NumElements
+    Number of elements
+
+.PARAMETER Sum
+    The target sum that each combination of numbers should add up to.
+
+.PARAMETER Min
+    The lowest value of each combination
+
+.EXAMPLE
+    PS C:\> Get-CombinationsWithSum -NumElements 2 -Sum 2 -Min 0
+
+    Combination
+    -----------
+    {0, 2}
+    {1, 1}
+    {2, 0}
+
+.NOTES
+    Uses recursion across the number of elements
+#>
+function Get-CombinationsWithSum {
+    param(
+        # Number of elements
+        [Parameter(Mandatory)]
+        [int]
+        $NumElements,
+        # The total sum required (y)
+        [Parameter(Mandatory)]
+        [int]
+        $Sum,
+        # Minimum value for each element (z)
+        [Parameter()]
+        [int]
+        $Min = 0
+    )
+
+    function Recurse {
+        param($n, $remaining, $prefix)
+        if ($n -eq 1) {
+            if ($remaining -ge $Min) {
+                ,(@($prefix + $remaining))
+            }
+        } else {
+            for ($i = $Min; $i -le $remaining - $Min * ($n - 1); $i++) {
+                foreach ($combo in Recurse ($n - 1) ($remaining - $i) ($prefix + $i)) {
+                    ,$combo
+                }
+            }
+        }
+    }
+
+    foreach ($combo in Recurse $NumElements $Sum @()) {
+        [PSCustomObject]@{ Combination = $combo }
+    }
+}
