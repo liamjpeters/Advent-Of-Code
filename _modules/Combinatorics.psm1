@@ -222,3 +222,103 @@ function Get-Combinations {
         [PSCustomObject]@{ Combination = $combination }
     }
 }
+
+<#
+.SYNOPSIS
+    Generates all combinations up to a maximum size (cardinality) optionally
+    including the empty set.
+
+.DESCRIPTION
+    Get-CombinationsWithLimit emits every combination (subset) of the input
+    items whose size is between 0 and Limit (inclusive). If -Limit is not
+    supplied it defaults to the number of input items (i.e. the full power set
+    including the empty set). When Limit is 0 only the empty combination is
+    returned. When Limit is >= the number of items, the entire power set is
+    returned.
+
+    The order of elements inside each combination preserves the order they
+    appeared in the input.
+
+    This differs from Get-Combinations which only returns NON-empty subsets
+    (sizes 1..n). This function can include the empty subset (size 0) and allows
+    you to truncate the maximum subset size.
+
+.PARAMETER Items
+    The input collection whose subsets will be generated.
+
+.PARAMETER Limit
+    Maximum subset size to generate (cardinality). Optional. Defaults to the
+    number of input items.
+    A value of 0 returns only the empty combination. Values larger than the
+    number of items are capped.
+
+.EXAMPLE
+    Get-CombinationsWithLimit -Items @(1,2,3) -Limit 2
+    Returns (in conceptual grouping by size):
+    ()
+    {1}
+    {2}
+    {3}
+    {1,2}
+    {1,3}
+    {2,3}
+
+.EXAMPLE
+    Get-CombinationsWithLimit -Items @(1,2,3)
+    (Limit omitted so full power set including empty set)
+    () {1} {2} {3} {1,2} {1,3} {2,3} {1,2,3}
+
+.EXAMPLE
+    Get-CombinationsWithLimit -Items @(1,2,3) -Limit 0
+    ()
+
+.NOTES
+    For n items the full power set contains 2^n subsets (including the empty
+    set). Limiting reduces the emitted count to Sum_{k=0..Limit} C(n,k).
+#>
+function Get-CombinationsWithLimit {
+    param(
+        [Parameter(Mandatory, Position = 0)]
+        [Array]
+        $Items,
+        [Parameter(Position = 1)]
+        # Maximum size (cardinality) of combinations to return. If omitted,
+        # defaults to the number of items.
+        # A value of 0 will return just the empty combination. Values greater
+        # than the number of items are capped.
+        [ValidateRange(0, [int]::MaxValue)]
+        [int]
+        $Limit
+    )
+
+    if (!$PSBoundParameters.ContainsKey('Limit')) {
+        $Limit = $Items.Count
+    }
+    $n = $Items.Count
+    if ($Limit -gt $n) { $Limit = $n }
+
+    # Local recursive helper to build combinations of a specific target size k
+    function Use-CombinationsOfSizeInternal {
+        param(
+            [int] $StartIndex,
+            [int] $Remaining,
+            [object[]] $Current
+        )
+        if ($Remaining -eq 0) {
+            [PSCustomObject]@{ Combination = $Current }
+            return
+        }
+        for ($idx = $StartIndex; $idx -le $n - $Remaining; $idx++) {
+            Use-CombinationsOfSizeInternal -StartIndex ($idx + 1) -Remaining ($Remaining - 1) -Current ($Current + $Items[$idx])
+        }
+    }
+
+    # Generate combinations for each size from 0..Limit (including empty set when size = 0)
+    for ($k = 0; $k -le $Limit; $k++) {
+        if ($k -eq 0) {
+            [PSCustomObject]@{ Combination = @() }
+        } else {
+            Use-CombinationsOfSizeInternal -StartIndex 0 -Remaining $k -Current @()
+        }
+    }
+}
