@@ -42,6 +42,67 @@ function SaveBitGridToBitmap {
     )
 }
 
+function SaveConnectedPointsToBitmap {
+    param (
+        # An array of points with an X and Y property
+        [Parameter(Mandatory)]
+        [PSCustomObject[]]
+        $Points,
+        [Parameter(Mandatory)]
+        [string]
+        $OutputPath,
+        [Parameter()]
+        [System.Drawing.Color]
+        $ForegroundColor = [System.Drawing.Color]::Blue,
+        [Parameter()]
+        [System.Drawing.Color]
+        $BackgroundColor = [System.Drawing.Color]::White,
+        [Parameter()]
+        [int]
+        $PenWidth = 2
+    )
+
+    try {
+        Add-Type -AssemblyName System.Drawing -ErrorAction Stop
+
+        # Define the dimensions of the image
+        $width = $Points |
+            Measure-Object -Maximum -Property X |
+            Select-Object -ExpandProperty Maximum
+
+        $height = $Points |
+            Measure-Object -Maximum -Property Y |
+            Select-Object -ExpandProperty Maximum
+
+        # Create a new Bitmap object
+        $bitmap = [System.Drawing.Bitmap]::new([int]$width, [int]$height)
+
+        # Create a Graphics object from the bitmap to draw on it
+        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+
+        # Set the background color
+        $graphics.Clear($BackgroundColor)
+
+        # Define the pen (Color, Width)
+        $pen = [System.Drawing.Pen]::new($ForegroundColor, $PenWidth)
+
+        $graphicsPoints = $Points | ForEach-Object {
+            [System.Drawing.Point]::new([int]$_.X, [int]$_.Y)
+        }
+
+        # Draw the lines connecting the points
+        $graphics.DrawLines($pen, $graphicsPoints)
+
+        $bitmap.Save($OutputPath, [System.Drawing.Imaging.ImageFormat]::Png)
+    } catch {
+        throw "An error occurred: $($_.Exception.Message)"
+    } finally {
+        if ($pen) { $pen.Dispose() }
+        if ($graphics) { $graphics.Dispose() }
+        if ($bitmap) { $bitmap.Dispose() }
+    }
+}
+
 function Convert-PngFolderToBWGif {
     [CmdletBinding()]
     param(
